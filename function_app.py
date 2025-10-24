@@ -58,7 +58,7 @@ def get_valid_access_token():
     logging.info("Refreshing token…")
     return refresh_access_token()
  
-def fetch_smokeball_contacts(limit=10, offset=0):
+def fetch_smokeball_contacts(limit=500, offset=0):
     token = get_valid_access_token()
     headers = {
         "x-api-key": API_KEY,
@@ -80,16 +80,16 @@ def fetch_smokeball_contacts(limit=10, offset=0):
 def testsmokeballfn(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function processed a request.")
     try:
-        # read query/body for limit/offset (optional)
+        # Safely parse request body
         try:
-            limit = int(req.params.get("limit") or (req.get_json().get("limit") if req.get_body() else 10) or 10)
-        except Exception:
-            limit = 1000
-        try:
-            offset = int(req.params.get("offset") or (req.get_json().get("offset") if req.get_body() else 0) or 0)
-        except Exception:
-            offset = 0
- 
+            body = req.get_json()
+        except ValueError:
+            body = {}
+
+        # Get limit and offset (default limit = 1000)
+        limit = int(req.params.get("limit") or body.get("limit") or 500)
+        offset = int(req.params.get("offset") or body.get("offset") or 0)
+
         data = fetch_smokeball_contacts(limit=limit, offset=offset)
         return func.HttpResponse(
             json.dumps(data),
@@ -98,7 +98,6 @@ def testsmokeballfn(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         logging.exception("testsmokeballfn failed")
-        # Always return something
         return func.HttpResponse(
             json.dumps({"error": str(e)}),
             mimetype="application/json",
