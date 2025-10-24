@@ -84,7 +84,7 @@ def testsmokeballfn(req: func.HttpRequest) -> func.HttpResponse:
         try:
             limit = int(req.params.get("limit") or (req.get_json().get("limit") if req.get_body() else 10) or 10)
         except Exception:
-            limit = 10
+            limit = 1000
         try:
             offset = int(req.params.get("offset") or (req.get_json().get("offset") if req.get_body() else 0) or 0)
         except Exception:
