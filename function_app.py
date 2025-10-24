@@ -8,16 +8,7 @@ import azure.functions as func
 # ----- Function App -----
 app = func.FunctionApp()
  
-# ====== CONFIG (move to environment/Key Vault in real use) ======
-# TOKEN_URL = "https://datastaging-auth.smokeball.co.uk/oauth2/token"
-# API_URL   = "https://stagingapi.smokeball.co.uk/contacts/"
-# CLIENT_ID = "..."
-# CLIENT_SECRET = "..."
-# REFRESH_TOKEN = "..."
-# API_KEY = "..."
-# ACCESS_TOKEN_FILE = "smokeball_access_token.json"
- 
-# If you’ve put them in env vars, use:
+# Env Vars:
 TOKEN_URL = os.getenv("TOKEN_URL")
 API_URL = os.getenv("API_URL")
 CLIENT_ID = os.getenv("CLIENT_ID")
