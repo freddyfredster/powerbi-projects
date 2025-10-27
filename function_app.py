@@ -7,8 +7,9 @@ import azure.functions as func
  
 # ----- Function App -----
 app = func.FunctionApp()
+
  
-# Env Vars:
+# If you’ve put them in env vars, use:
 TOKEN_URL = os.getenv("TOKEN_URL")
 API_URL = os.getenv("API_URL")
 CLIENT_ID = os.getenv("CLIENT_ID")
@@ -58,46 +59,52 @@ def get_valid_access_token():
     logging.info("Refreshing token…")
     return refresh_access_token()
  
-def fetch_smokeball_contacts(limit=500, offset=0):
+def fetch_all_smokeball_contacts(max_per_request=500):
+ 
     token = get_valid_access_token()
     headers = {
         "x-api-key": API_KEY,
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
-    params = {"limit": limit, "offset": offset}
-    resp = requests.get(API_URL, headers=headers, params=params, timeout=30)
-    logging.info(f"Upstream status: {resp.status_code}")
- 
-    if resp.status_code != 200:
-        # Bubble up the body to help debugging
-        raise Exception(f"Upstream error {resp.status_code}: {resp.text}")
- 
-    return resp.json()
+
+    all_contacts = []
+    offset = 0
+
+    while True:
+        params = {"limit": max_per_request, "offset": offset}
+        resp = requests.get(API_URL, headers=headers, params=params, timeout=30)
+        logging.info(f"Fetching contacts: offset={offset}, status={resp.status_code}")
+
+        if resp.status_code != 200:
+            raise Exception(f"Upstream error {resp.status_code}: {resp.text}")
+
+        data = resp.json()
+        contacts = data.get("value", [])
+        all_contacts.extend(contacts)
+
+        # Stop when fewer than max_per_request are returned (last page)
+        if len(contacts) < max_per_request:
+            break
+
+        offset += max_per_request
+
+    return {"contacts": all_contacts}
+
  
 # ====== HTTP Route ======
-@app.route(route="testsmokeballfn", methods=["GET", "POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def testsmokeballfn(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="APICallingSmokeball", methods=["GET", "POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def APICallingSmokeball(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function processed a request.")
     try:
-        # Safely parse request body
-        try:
-            body = req.get_json()
-        except ValueError:
-            body = {}
-
-        # Get limit and offset (default limit = 1000)
-        limit = int(req.params.get("limit") or body.get("limit") or 500)
-        offset = int(req.params.get("offset") or body.get("offset") or 0)
-
-        data = fetch_smokeball_contacts(limit=limit, offset=offset)
+        data = fetch_all_smokeball_contacts(max_per_request=500)
         return func.HttpResponse(
             json.dumps(data),
             mimetype="application/json",
             status_code=200
         )
     except Exception as e:
-        logging.exception("testsmokeballfn failed")
+        logging.exception("APICallingSmokeball failed")
         return func.HttpResponse(
             json.dumps({"error": str(e)}),
             mimetype="application/json",
